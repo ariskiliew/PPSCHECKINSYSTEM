@@ -225,7 +225,7 @@ const initData = {
   schedules:[]
 }
 
-let data = null;
+let data = JSON.parse(JSON.stringify(initData)); // 兜底初始化，不再是null
 let loginInfo = null;
 let scanStoreId = null;
 let staffPage = 1;
@@ -252,8 +252,9 @@ async function loadCloud(){
     }
     setSyncTip("✅ 数据已同步");
   }catch(e){
-    setSyncTip("❌ 云端读取失败，请检查BIN ID和密钥");
+    setSyncTip("⚠️ 云端读取失败，使用本地临时数据");
     console.error(e);
+    // 读取失败，保留initData兜底，不会变成undefined
   }
 }
 // 云端保存
@@ -270,8 +271,9 @@ async function saveCloud(){
     });
     setSyncTip("✅ 保存成功");
   }catch(e){
-    setSyncTip("❌ 保存失败");
+    setSyncTip("❌ 保存失败，请检查JSONBin密钥");
     console.error(e);
+    alert("保存失败！请检查你的JSONBin API Key和BIN ID");
   }
 }
 
@@ -459,6 +461,7 @@ function toggleDetail(){$("detailWrap").classList.toggle("hidden")}
 
 // 分店
 async function addStore(){
+  if(!data.store) data.store = [];
   const n = $("newStoreName").value.trim();
   if(!n)return alert("名字不能为空");
   const id = "s"+Date.now();
@@ -474,6 +477,7 @@ async function delStore(id){
   renderStore();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();
 }
 function renderStore(){
+  if(!data.store) data.store = [];
   let html = "";
   data.store.forEach(s=>{
     html += `<div class="flex-between" style="margin:8px 0;padding:8px;border:1px solid #eee;border-radius:8px">
@@ -489,6 +493,7 @@ function renderStore(){
 }
 // 员工
 async function addStaff(){
+  if(!data.staff) data.staff = [];
   const n = $("newStaffName").value.trim();
   const p = $("newStaffPwd").value.trim();
   if(!n || !p)return alert("名字和密码都不能为空");
@@ -510,6 +515,7 @@ async function delStaff(id){
   renderStaffList();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();renderStat();renderDetail();
 }
 function renderStaffList(){
+  if(!data.staff) data.staff = [];
   let html = "";
   data.staff.forEach(s=>{
     html += `<div class="flex-between" style="margin:8px 0;padding:8px;border:1px solid #eee;border-radius:8px">
@@ -523,12 +529,15 @@ function renderStaffList(){
 
 // 排班设置
 function renderScheduleSelect(){
+  if(!data.staff) data.staff = [];
+  if(!data.store) data.store = [];
   $("schStaff").innerHTML = `<option value="">选择员工</option>` + data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
   $("schStore").innerHTML = `<option value="">选择分店</option>` + data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
   $("schStaff").onchange = renderScheduleList;
   renderScheduleList();
 }
 function renderScheduleList(){
+  if(!data.schedules) data.schedules = [];
   const sid = $("schStaff").value;
   if(!sid) return $("schList").innerHTML = "<div>请先选择员工</div>";
   const list = data.schedules.filter(x=>x.sid === sid);
@@ -547,6 +556,7 @@ function renderScheduleList(){
   $("schList").innerHTML = html;
 }
 async function saveSchedule(){
+  if(!data.schedules) data.schedules = [];
   const sid = $("schStaff").value;
   const wd = Number($("schWeekday").value);
   const stid = $("schStore").value;
@@ -562,6 +572,7 @@ async function saveSchedule(){
   alert("排班保存成功");
 }
 async function delSchedule(sid,wd){
+  if(!data.schedules) data.schedules = [];
   data.schedules = data.schedules.filter(x=>!(x.sid===sid && x.weekday===wd));
   await saveCloud();
   renderScheduleList();
@@ -569,10 +580,13 @@ async function delSchedule(sid,wd){
 
 // 补卡
 function renderManualSelect(){
+  if(!data.staff) data.staff = [];
+  if(!data.store) data.store = [];
   $("manualStaff").innerHTML = data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
   $("manualStore").innerHTML = data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
 }
 async function manualAdd(){
+  if(!data.records) data.records = [];
   const sid = $("manualStaff").value;
   const stid = $("manualStore").value;
   const type = $("manualType").value;
@@ -607,6 +621,8 @@ async function manualAdd(){
 }
 // 统计
 function renderFilterSelect(){
+  if(!data.staff) data.staff = [];
+  if(!data.records) data.records = [];
   $("filterStaff").innerHTML = `<option value="">全部员工</option>`+data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
   const m = new Date().getMonth()+1;
   let opt = `<option value="">全部月份</option>`;
@@ -616,6 +632,7 @@ function renderFilterSelect(){
   $("filterMonth").onchange=renderStat;
 }
 function renderStat(){
+  if(!data.records) data.records = [];
   const fStaff = $("filterStaff").value;
   const fMonth = $("filterMonth").value;
   let recs = [...data.records];
@@ -662,6 +679,8 @@ function renderStat(){
 }
 // 明细
 function renderDetailSelect(){
+  if(!data.staff) data.staff = [];
+  if(!data.store) data.store = [];
   $("detailStaff").innerHTML = `<option value="">全部员工</option>`+data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
   $("detailStore").innerHTML = `<option value="">全部分店</option>`+data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
   $("detailStaff").onchange=()=>{detailPage=1;renderDetail()};
@@ -669,6 +688,7 @@ function renderDetailSelect(){
   $("detailDate").onchange=()=>{detailPage=1;renderDetail()};
 }
 function renderDetail(){
+  if(!data.records) data.records = [];
   const fStaff = $("detailStaff").value;
   const fStore = $("detailStore").value;
   const fDate = $("detailDate").value;
