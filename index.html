@@ -198,6 +198,9 @@ th{background:#f9fafb}
 // =====================【在这里填入你的JSONBin信息】=====================
 const BIN_ID = "6afd3e98ac6210605a90b9b1";
 const API_KEY = "$2a$10$CQnNp5E7bH5hdVp/LiEAr.G3RslWJtfWeugV/eGrtn9LQNBKLYWBy";
+// 管理员固定账号密码（不会读取云端的admin）
+const ADMIN_USER = "boss";
+const ADMIN_PWD = "1234567890";
 // ======================================================================
 const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
@@ -219,8 +222,7 @@ const initData = {
     {id:"s6",name:"Econ Botani"},
   ],
   records:[],
-  schedules:[],
-  admin:{user:"boss",pwd:"1234567890"}
+  schedules:[]
 }
 
 let data = null;
@@ -291,13 +293,13 @@ function getLateLevel(nowMin, stdMin){
   return "red";
 }
 
-// 登录
+// 登录【修改重点：管理员使用固定账号密码，不从云端读取】
 async function login(type){
   await loadCloud();
   const u = $("loginUser").value.trim();
   const p = $("loginPwd").value.trim();
   if(type==="admin"){
-    if(u===data.admin.user && p===data.admin.pwd){
+    if(u===ADMIN_USER && p===ADMIN_PWD){
       loginInfo={role:"admin"};
       showAdmin();
       return;
