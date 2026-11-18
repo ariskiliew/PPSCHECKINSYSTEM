@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分店打卡考勤系统</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiS29rLUF0dGVuZGFuY2UiLCJzaG9ydF9uYW1lIjoiS29rLURha2EiLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwidGhlbWVfY29sb3IiOiIjMjU2M2ViIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnPjxmaWxsIGZpbGw9JyMyNTYzZWIvPjxwYXRoIGQ9J001MCAxMGE0MCA0MCAwIDEgMSAwIDgwIDQwIDQwIDAgMCAxIDAtODB6bTIwIDM1aC0xMlYzMmgxMlY0NW0tMjAgMGgtMTJ2LTMwaDEydiMzNW0tMjAgMGgtMTJ2LTMwaDEydiMzNW0tMjAgMGgtMTJ2LTMwaDEydiMzNScvPjwvc3ZnPiIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==">
+<meta name="theme-color" content="#2563eb">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232563eb'/><text x='50' y='60' font-size='50' fill='white' text-anchor='middle'>打卡</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui,sans-serif;margin:0;padding:0}
+body{background:#f4f7fa;padding:12px;color:#333}
+.container{max-width:720px;margin:0 auto;background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px #00000015}
+.hidden{display:none !important}
+.title{font-size:20px;font-weight:bold;margin-bottom:16px;text-align:center}
+.card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:14px}
+.flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+button{padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:15px;cursor:pointer}
+button.gray{background:#6b7280}
+button.danger{background:#dc2626}
+button.success{background:#16a34a}
+button.warning{background:#f59e0b}
+input,select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:8px 0;font-size:15px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{border:1px solid #eee;padding:8px;text-align:left}
+th{background:#f9fafb}
+.tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:12px;color:#fff}
+.tag-blue{background:#2563eb}
+.tag-orange{background:#f59e0b}
+.tag-red{background:#ef4444}
+.tag-green{background:#16a34a}
+.tag-purple{background:#9333ea}
+.tag-yellow{background:#eab308;color:#222}
+.pagination{margin-top:12px;display:flex;gap:8px;align-items:center}
+.collapse-header{cursor:pointer;font-weight:bold;padding:8px;background:#f3f4f6;border-radius:8px;margin-bottom:8px}
+.qr-box{text-align:center;margin:8px 0}
+.qr-box canvas{border:1px solid #eee;padding:6px;border-radius:8px}
+.msg{padding:10px;border-radius:8px;margin:10px 0}
+.msg.ok{background:#dcfce7;color:#166534}
+.msg.warn-yellow{background:#fef9c3;color:#854d0e}
+.msg.warn-red{background:#fee2e2;color:#991b1b}
+.msg.err{background:#fee2e2;color:#991b1b}
+.small{font-size:13px;color:#666}
+.sync-info{text-align:center;color:#2563eb;font-size:13px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="sync-info" id="syncTip">🔄 正在同步云端数据</div>
+  <!-- 登录页 -->
+  <div id="loginPage">
+    <div class="title">考勤打卡系统</div>
+    <div class="card">
+      <label>账号</label>
+      <input id="loginUser" autocomplete="username" placeholder="输入账号">
+      <label>密码</label>
+      <input id="loginPwd" type="password" autocomplete="current-password" placeholder="输入密码">
+      <div class="flex" style="margin-top:10px">
+        <button onclick="login('staff')">员工登录</button>
+        <button onclick="login('admin')" class="gray">管理员登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 员工端页面 -->
+  <div id="staffPage" class="hidden">
+    <div class="flex-between">
+      <div class="title">员工打卡</div>
+      <button onclick="logout()" class="gray">退出</button>
+    </div>
+    <div class="card">
+      <div id="staffInfo"></div>
+      <div style="margin:10px 0">
+        <button onclick="simScan()">扫描门店二维码</button>
+        <div id="scanResult" style="margin:10px 0"></div>
+        <div class="flex">
+          <button onclick="checkIn()" class="success">上班打卡</button>
+          <button onclick="checkOut()" class="danger">下班打卡</button>
+        </div>
+      </div>
+      <div id="staffMsg"></div>
+    </div>
+    <!-- 本周排班 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleWeekSchedule()">📅 本周排班表</div>
+      <div id="weekScheduleWrap" class="hidden"></div>
+    </div>
+    <div class="card">
+      <div class="collapse-header" onclick="toggleStaffRecord()">📋 本月打卡记录（5天/页）</div>
+      <div id="staffRecordWrap">
+        <div id="staffRecordList"></div>
+        <div class="pagination" id="staffPageWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理员页面 -->
+  <div id="adminPage" class="hidden">
+    <div class="flex-between">
+      <div class="title">管理员后台</div>
+      <button onclick="logout()" class="gray">退出</button>
+    </div>
+    <!-- 分店管理 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleStore()">🏪 分店管理</div>
+      <div id="storeWrap" class="hidden">
+        <div class="flex">
+          <input id="newStoreName" placeholder="新增分店名称">
+          <button onclick="addStore()" class="success">新增</button>
+        </div>
+        <div id="storeList"></div>
+      </div>
+    </div>
+    <!-- 员工管理 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleStaff()">👥 员工管理</div>
+      <div id="staffWrap" class="hidden">
+        <div class="flex">
+          <input id="newStaffName" placeholder="员工名字">
+          <input id="newStaffPwd" placeholder="设置登录密码">
+          <button onclick="addStaff()" class="success">新增</button>
+        </div>
+        <div id="staffList"></div>
+      </div>
+    </div>
+    <!-- 排班设置 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleSchedule()">⏰ 员工排班设置</div>
+      <div id="scheduleWrap" class="hidden">
+        <select id="schStaff">
+          <option value="">请选择员工</option>
+        </select>
+        <select id="schWeekday">
+          <option value="0">周日</option>
+          <option value="1">周一</option>
+          <option value="2">周二</option>
+          <option value="3">周三</option>
+          <option value="4">周四</option>
+          <option value="5">周五</option>
+          <option value="6">周六</option>
+        </select>
+        <select id="schStore">
+          <option value="">选择上班分店</option>
+        </select>
+        <label>上班时间</label>
+        <input type="time" id="schInTime">
+        <label>下班时间</label>
+        <input type="time" id="schOutTime">
+        <button onclick="saveSchedule()" class="success">保存排班</button>
+        <div id="schList" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <!-- 补卡 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleManual()">✏️ 管理员代补打卡</div>
+      <div id="manualWrap" class="hidden">
+        <select id="manualStaff"></select>
+        <select id="manualStore"></select>
+        <select id="manualType">
+          <option value="in">上班</option>
+          <option value="out">下班</option>
+        </select>
+        <input type="datetime-local" id="manualTime">
+        <button onclick="manualAdd()" class="success">提交补卡</button>
+        <div id="manualMsg"></div>
+      </div>
+    </div>
+    <!-- 统计筛选 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleStat()">📊 出勤统计</div>
+      <div id="statWrap">
+        <div class="flex">
+          <select id="filterStaff"></select>
+          <select id="filterMonth"></select>
+        </div>
+        <div id="statResult"></div>
+      </div>
+    </div>
+    <!-- 打卡明细 -->
+    <div class="card">
+      <div class="collapse-header" onclick="toggleDetail()">📄 打卡明细（10条/页）</div>
+      <div id="detailWrap" class="hidden">
+        <div class="flex">
+          <select id="detailStaff"></select>
+          <select id="detailStore"></select>
+          <input type="date" id="detailDate">
+        </div>
+        <div id="detailList"></div>
+        <div class="pagination" id="detailPageWrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================【在这里填入你的JSONBin信息】=====================
+const BIN_ID = "6afd3e98ac6210605a90b9b1";
+const API_KEY = "$2a$10$CQnNp5E7bH5hdVp/LiEAr.G3RslWJtfWeugV/eGrtn9LQNBKLYWBy";
+// ======================================================================
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+// 迟到分级：
+// <=10分钟：正常
+// 11~14分钟：轻度迟到（黄色）
+// >=15分钟：严重迟到（红色）
+const LATE_YELLOW = 10;
+const LATE_RED = 15;
+
+const initData = {
+  staff:[],
+  store:[
+    {id:"s1",name:"Ipoh Parade"},
+    {id:"s2",name:"Ipoh Parade 2"},
+    {id:"s3",name:"二奶巷"},
+    {id:"s4",name:"Econ Tasek"},
+    {id:"s5",name:"Lotus Station 18"},
+    {id:"s6",name:"Econ Botani"},
+  ],
+  records:[],
+  schedules:[],
+  admin:{user:"boss",pwd:"1234567890"}
+}
+
+let data = null;
+let loginInfo = null;
+let scanStoreId = null;
+let staffPage = 1;
+let detailPage = 1;
+const staffPageSize = 5;
+const detailPageSize = 10;
+
+function $(id){return document.getElementById(id)}
+function setSyncTip(text){$("syncTip").innerText = text}
+
+// 云端读取
+async function loadCloud(){
+  setSyncTip("🔄 正在拉取云端数据");
+  try{
+    const res = await fetch(JSONBIN_URL,{
+      headers:{"X-Master-Key":API_KEY}
+    });
+    const json = await res.json();
+    if(json.record){
+      data = json.record;
+    }else{
+      data = JSON.parse(JSON.stringify(initData));
+      await saveCloud();
+    }
+    setSyncTip("✅ 数据已同步");
+  }catch(e){
+    setSyncTip("❌ 云端读取失败，请检查BIN ID和密钥");
+    console.error(e);
+  }
+}
+// 云端保存
+async function saveCloud(){
+  setSyncTip("🔄 正在上传保存");
+  try{
+    await fetch(JSONBIN_URL,{
+      method:"PUT",
+      headers:{
+        "X-Master-Key":API_KEY,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify(data)
+    });
+    setSyncTip("✅ 保存成功");
+  }catch(e){
+    setSyncTip("❌ 保存失败");
+    console.error(e);
+  }
+}
+
+// 时间辅助：把 HH:mm 转分钟
+function timeToMin(str){
+  if(!str) return null;
+  const [h,m] = str.split(":").map(Number);
+  return h*60 + m;
+}
+function getWeekDayName(num){
+  const arr = ["周日","周一","周二","周三","周四","周五","周六"];
+  return arr[num];
+}
+// 计算迟到等级
+function getLateLevel(nowMin, stdMin){
+  const diff = nowMin - stdMin;
+  if(diff <= LATE_YELLOW) return "normal";
+  if(diff < LATE_RED) return "yellow";
+  return "red";
+}
+
+// 登录
+async function login(type){
+  await loadCloud();
+  const u = $("loginUser").value.trim();
+  const p = $("loginPwd").value.trim();
+  if(type==="admin"){
+    if(u===data.admin.user && p===data.admin.pwd){
+      loginInfo={role:"admin"};
+      showAdmin();
+      return;
+    }
+    alert("管理员账号密码错误");
+  }else{
+    const s = data.staff.find(x=>x.name===u && x.pwd===p);
+    if(s){
+      loginInfo={role:"staff",sid:s.id,sname:s.name};
+      showStaff();
+      return;
+    }
+    alert("员工账号密码错误");
+  }
+}
+function logout(){
+  loginInfo=null;
+  $("loginPage").classList.remove("hidden");
+  $("staffPage").classList.add("hidden");
+  $("adminPage").classList.add("hidden");
+}
+
+// 员工页面
+function showStaff(){
+  $("loginPage").classList.add("hidden");
+  $("staffPage").classList.remove("hidden");
+  $("staffInfo").innerText = `欢迎：${loginInfo.sname}`;
+  scanStoreId=null;$("scanResult").innerText="";
+  renderWeekSchedule();
+  renderStaffRecord();
+}
+function simScan(){
+  const sel = document.createElement("select");
+  sel.innerHTML = data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  const sid = sel.value;
+  scanStoreId = sid;
+  const st = data.store.find(x=>x.id===sid);
+  $("scanResult").innerHTML = `<span class="tag tag-blue">已识别分店：${st.name}</span>`;
+}
+async function checkIn(){
+  if(!scanStoreId){$("staffMsg").innerHTML='<div class="msg err">请先扫描门店二维码</div>';return}
+  const now = new Date();
+  const wd = now.getDay();
+  const sch = data.schedules.find(x=>x.sid===loginInfo.sid && x.weekday == wd);
+  let lateLevel = "normal";
+  if(sch && sch.inTime){
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    const stdMin = timeToMin(sch.inTime);
+    lateLevel = getLateLevel(nowMin, stdMin);
+  }
+  const rec = {
+    id:Date.now(),
+    sid:loginInfo.sid,
+    sname:loginInfo.sname,
+    storeId:scanStoreId,
+    storeName:data.store.find(x=>x.id===scanStoreId).name,
+    type:"in",
+    time:now.toISOString(),
+    isManual:false,
+    lateLevel:lateLevel
+  }
+  data.records.push(rec);
+  await saveCloud();
+  if(lateLevel === "yellow"){
+    $("staffMsg").innerHTML='<div class="msg warn-yellow">上班打卡成功 ⚠️ 轻度迟到</div>';
+  }else if(lateLevel === "red"){
+    $("staffMsg").innerHTML='<div class="msg warn-red">上班打卡成功 ❗ 严重迟到</div>';
+  }else{
+    $("staffMsg").innerHTML='<div class="msg ok">上班打卡成功</div>';
+  }
+  renderStaffRecord();
+  renderWeekSchedule();
+}
+async function checkOut(){
+  if(!scanStoreId){$("staffMsg").innerHTML='<div class="msg err">请先扫描门店二维码</div>';return}
+  const now = new Date();
+  const rec = {
+    id:Date.now(),
+    sid:loginInfo.sid,
+    sname:loginInfo.sname,
+    storeId:scanStoreId,
+    storeName:data.store.find(x=>x.id===scanStoreId).name,
+    type:"out",
+    time:now.toISOString(),
+    isManual:false,
+    lateLevel:"normal"
+  }
+  data.records.push(rec);
+  await saveCloud();
+  $("staffMsg").innerHTML='<div class="msg ok">下班打卡成功</div>';
+  renderStaffRecord();
+  renderWeekSchedule();
+}
+function toggleWeekSchedule(){$("weekScheduleWrap").classList.toggle("hidden")}
+function renderWeekSchedule(){
+  const mySch = data.schedules.filter(x=>x.sid === loginInfo.sid);
+  let html = "<table><tr><th>星期</th><th>上班分店</th><th>上班时间</th><th>下班时间</th></tr>";
+  for(let d=0;d<=6;d++){
+    const s = mySch.find(x=>x.weekday == d);
+    if(s){
+      const stName = data.store.find(x=>x.id===s.storeId)?.name || "-";
+      html += `<tr><td>${getWeekDayName(d)}</td><td>${stName}</td><td>${s.inTime}</td><td>${s.outTime}</td></tr>`
+    }else{
+      html += `<tr><td>${getWeekDayName(d)}</td><td>休息</td><td>-</td><td>-</td></tr>`
+    }
+  }
+  html += "</table>";
+  $("weekScheduleWrap").innerHTML = html;
+}
+function toggleStaffRecord(){$("staffRecordWrap").classList.toggle("hidden")}
+function renderStaffRecord(){
+  staffPage=1;
+  const myRec = data.records.filter(x=>x.sid===loginInfo.sid).sort((a,b)=>new Date(b.time)-new Date(a.time));
+  const group = {};
+  myRec.forEach(r=>{
+    const d = new Date(r.time).toLocaleDateString();
+    if(!group[d]) group[d]=[];
+    group[d].push(r);
+  })
+  const days = Object.keys(group).sort((a,b)=>new Date(b)-new Date(a));
+  const total = days.length;
+  const start = (staffPage-1)*staffPageSize;
+  const pageDays = days.slice(start,start+staffPageSize);
+  let html = "";
+  pageDays.forEach(d=>{
+    const list = group[d];
+    html += `<div class="card"><div>${d}</div>`
+    list.forEach(r=>{
+      const t = new Date(r.time).toLocaleTimeString();
+      const tp = r.type==="in"?"上班":"下班";
+      let tagClass = r.type==="in"?"tag-green":"tag-orange";
+      let extra = "";
+      if(r.lateLevel === "yellow") extra += " <span class='tag tag-yellow'>轻度迟到</span>";
+      if(r.lateLevel === "red") extra += " <span class='tag tag-red'>严重迟到</span>";
+      if(r.isManual) extra += "【补卡】";
+      html += `<div><span class="tag ${tagClass}">${tp}</span> ${r.storeName} ${t} ${extra}</div>`
+    })
+    html += "</div>"
+  })
+  $("staffRecordList").innerHTML = html || "<div>暂无记录</div>";
+  let pager = `<button onclick="staffPage--;renderStaffRecord()" ${staffPage<=1?"disabled":""}>上一页</button> 第${staffPage}页 <button onclick="staffPage++;renderStaffRecord()" ${start+staffPageSize>=total?"disabled":""}>下一页</button>`
+  $("staffPageWrap").innerHTML = pager;
+}
+
+// 管理员页面
+function showAdmin(){
+  $("loginPage").classList.add("hidden");
+  $("adminPage").classList.remove("hidden");
+  renderStore();renderStaffList();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();renderStat();renderDetail();
+}
+function toggleStore(){$("storeWrap").classList.toggle("hidden")}
+function toggleStaff(){$("staffWrap").classList.toggle("hidden")}
+function toggleSchedule(){$("scheduleWrap").classList.toggle("hidden")}
+function toggleManual(){$("manualWrap").classList.toggle("hidden")}
+function toggleStat(){$("statWrap").classList.toggle("hidden")}
+function toggleDetail(){$("detailWrap").classList.toggle("hidden")}
+
+// 分店
+async function addStore(){
+  const n = $("newStoreName").value.trim();
+  if(!n)return alert("名字不能为空");
+  const id = "s"+Date.now();
+  data.store.push({id,name:n});
+  await saveCloud();
+  $("newStoreName").value="";renderStore();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();
+}
+async function delStore(id){
+  if(!confirm("确定删除？"))return;
+  data.store=data.store.filter(x=>x.id!==id);
+  data.schedules = data.schedules.filter(x=>x.storeId!==id);
+  await saveCloud();
+  renderStore();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();
+}
+function renderStore(){
+  let html = "";
+  data.store.forEach(s=>{
+    html += `<div class="flex-between" style="margin:8px 0;padding:8px;border:1px solid #eee;border-radius:8px">
+      <div>${s.name} (${s.id})</div>
+      <div class="qr-box"><canvas id="qr${s.id}"></canvas></div>
+      <button onclick="delStore('${s.id}')" class="danger">删除</button>
+    </div>`
+  })
+  $("storeList").innerHTML = html;
+  data.store.forEach(s=>{
+    QRCode.toCanvas(document.getElementById("qr"+s.id),`attendance://checkin?store=${s.id}`,{width:100})
+  })
+}
+// 员工
+async function addStaff(){
+  const n = $("newStaffName").value.trim();
+  const p = $("newStaffPwd").value.trim();
+  if(!n || !p)return alert("名字和密码都不能为空");
+  const exist = data.staff.find(x=>x.name === n);
+  if(exist) return alert("该员工名字已经存在！");
+  const id = "st"+Date.now();
+  data.staff.push({id,name:n,pwd:p});
+  await saveCloud();
+  $("newStaffName").value="";
+  $("newStaffPwd").value="";
+  renderStaffList();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();
+}
+async function delStaff(id){
+  if(!confirm("确定删除该员工？打卡记录、排班一并移除"))return;
+  data.staff=data.staff.filter(x=>x.id!==id);
+  data.records=data.records.filter(x=>x.sid!==id);
+  data.schedules=data.schedules.filter(x=>x.sid!==id);
+  await saveCloud();
+  renderStaffList();renderScheduleSelect();renderManualSelect();renderFilterSelect();renderDetailSelect();renderStat();renderDetail();
+}
+function renderStaffList(){
+  let html = "";
+  data.staff.forEach(s=>{
+    html += `<div class="flex-between" style="margin:8px 0;padding:8px;border:1px solid #eee;border-radius:8px">
+      <div>员工：${s.name}｜密码：${s.pwd}</div>
+      <button onclick="delStaff('${s.id}')" class="danger">删除</button>
+    </div>`
+  })
+  if(data.staff.length === 0) html = "<div>暂无员工，请新增</div>";
+  $("staffList").innerHTML = html;
+}
+
+// 排班设置
+function renderScheduleSelect(){
+  $("schStaff").innerHTML = `<option value="">选择员工</option>` + data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  $("schStore").innerHTML = `<option value="">选择分店</option>` + data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  $("schStaff").onchange = renderScheduleList;
+  renderScheduleList();
+}
+function renderScheduleList(){
+  const sid = $("schStaff").value;
+  if(!sid) return $("schList").innerHTML = "<div>请先选择员工</div>";
+  const list = data.schedules.filter(x=>x.sid === sid);
+  let html = "<table><tr><th>星期</th><th>分店</th><th>上班</th><th>下班</th><th>操作</th></tr>";
+  list.forEach(sch=>{
+    const stName = data.store.find(x=>x.id===sch.storeId)?.name;
+    html += `<tr>
+      <td>${getWeekDayName(sch.weekday)}</td>
+      <td>${stName}</td>
+      <td>${sch.inTime}</td>
+      <td>${sch.outTime}</td>
+      <td><button onclick="delSchedule('${sid}',${sch.weekday})" class="danger">删除</button></td>
+    </tr>`
+  })
+  html += "</table>";
+  $("schList").innerHTML = html;
+}
+async function saveSchedule(){
+  const sid = $("schStaff").value;
+  const wd = Number($("schWeekday").value);
+  const stid = $("schStore").value;
+  const int = $("schInTime").value;
+  const outt = $("schOutTime").value;
+  if(!sid || !stid || !int || !outt){
+    alert("全部项目都要填写");return;
+  }
+  data.schedules = data.schedules.filter(x=>!(x.sid===sid && x.weekday===wd));
+  data.schedules.push({sid:sid,weekday:wd,storeId:stid,inTime:int,outTime:outt});
+  await saveCloud();
+  renderScheduleList();
+  alert("排班保存成功");
+}
+async function delSchedule(sid,wd){
+  data.schedules = data.schedules.filter(x=>!(x.sid===sid && x.weekday===wd));
+  await saveCloud();
+  renderScheduleList();
+}
+
+// 补卡
+function renderManualSelect(){
+  $("manualStaff").innerHTML = data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  $("manualStore").innerHTML = data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+}
+async function manualAdd(){
+  const sid = $("manualStaff").value;
+  const stid = $("manualStore").value;
+  const type = $("manualType").value;
+  const t = $("manualTime").value;
+  if(!t){$("manualMsg").innerHTML='<div class="msg err">请选择时间</div>';return}
+  const s = data.staff.find(x=>x.id===sid);
+  const st = data.store.find(x=>x.id===stid);
+  const dt = new Date(t);
+  const wd = dt.getDay();
+  const sch = data.schedules.find(x=>x.sid===sid && x.weekday==wd);
+  let lateLevel = "normal";
+  if(type==="in" && sch?.inTime){
+    const nowMin = dt.getHours()*60 + dt.getMinutes();
+    const stdMin = timeToMin(sch.inTime);
+    lateLevel = getLateLevel(nowMin, stdMin);
+  }
+  const rec = {
+    id:Date.now(),
+    sid:sid,
+    sname:s.name,
+    storeId:stid,
+    storeName:st.name,
+    type:type,
+    time:dt.toISOString(),
+    isManual:true,
+    lateLevel:lateLevel
+  }
+  data.records.push(rec);
+  await saveCloud();
+  $("manualMsg").innerHTML='<div class="msg ok">补卡成功</div>';
+  renderStat();renderDetail();
+}
+// 统计
+function renderFilterSelect(){
+  $("filterStaff").innerHTML = `<option value="">全部员工</option>`+data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  const m = new Date().getMonth()+1;
+  let opt = `<option value="">全部月份</option>`;
+  for(let i=1;i<=12;i++) opt += `<option value="${i}">${i}月</option>`
+  $("filterMonth").innerHTML = opt;
+  $("filterStaff").onchange=renderStat;
+  $("filterMonth").onchange=renderStat;
+}
+function renderStat(){
+  const fStaff = $("filterStaff").value;
+  const fMonth = $("filterMonth").value;
+  let recs = [...data.records];
+  if(fStaff) recs = recs.filter(x=>x.sid===fStaff);
+  if(fMonth) recs = recs.filter(x=>new Date(x.time).getMonth()+1 == Number(fMonth));
+  const group = {};
+  recs.forEach(r=>{
+    const d = new Date(r.time).toLocaleDateString();
+    const key = r.sid + "|" + d;
+    if(!group[key]) group[key]={sid:r.sid,sname:r.sname,date:d,inRec:null,outRec:null};
+    if(r.type==="in") group[key].inRec = r;
+    if(r.type==="out") group[key].outRec = r;
+  })
+  const list = Object.values(group);
+  let html = "<table><tr><th>员工</th><th>日期</th><th>上班分店</th><th>下班分店</th><th>状态</th><th>迟到标记</th></tr>";
+  const statStaff = {};
+  list.forEach(g=>{
+    let status = "缺下班";
+    let lateStr = "-";
+    if(g.inRec?.lateLevel === "yellow") lateStr = "🟡轻度迟到";
+    if(g.inRec?.lateLevel === "red") lateStr = "🔴严重迟到";
+    if(g.inRec && g.outRec) status="✅ 完成轮回";
+    else if(!g.inRec && g.outRec) status="缺上班";
+    html += `<tr><td>${g.sname}</td><td>${g.date}</td><td>${g.inRec?.storeName||"-"}</td><td>${g.outRec?.storeName||"-"}</td><td>${status}</td><td>${lateStr}</td></tr>`
+    if(g.inRec && g.outRec){
+      if(!statStaff[g.sid]) statStaff[g.sid]={name:g.sname,total:0,yellowCount:0,redCount:0,store:{}}
+      statStaff[g.sid].total++;
+      if(g.inRec?.lateLevel === "yellow") statStaff[g.sid].yellowCount++;
+      if(g.inRec?.lateLevel === "red") statStaff[g.sid].redCount++;
+      const stName = g.inRec.storeName;
+      statStaff[g.sid].store[stName] = (statStaff[g.sid].store[stName]||0)+1;
+    }
+  })
+  html += "</table>";
+  html += "<div style='margin-top:12px;font-weight:bold'>汇总（只有配对成功才算轮回）</div>";
+  Object.values(statStaff).forEach(s=>{
+    html += `<div class="card">${s.name}：出勤${s.total}天，轻度迟到${s.yellowCount}次，严重迟到${s.redCount}次<br>`
+    Object.entries(s.store).forEach(([k,v])=>{
+      html += `&nbsp;&nbsp;${k}：${v}天<br>`
+    })
+    html += "</div>"
+  })
+  $("statResult").innerHTML = html;
+}
+// 明细
+function renderDetailSelect(){
+  $("detailStaff").innerHTML = `<option value="">全部员工</option>`+data.staff.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  $("detailStore").innerHTML = `<option value="">全部分店</option>`+data.store.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  $("detailStaff").onchange=()=>{detailPage=1;renderDetail()};
+  $("detailStore").onchange=()=>{detailPage=1;renderDetail()};
+  $("detailDate").onchange=()=>{detailPage=1;renderDetail()};
+}
+function renderDetail(){
+  const fStaff = $("detailStaff").value;
+  const fStore = $("detailStore").value;
+  const fDate = $("detailDate").value;
+  let recs = [...data.records].sort((a,b)=>new Date(b.time)-new Date(a.time));
+  if(fStaff) recs = recs.filter(x=>x.sid===fStaff);
+  if(fStore) recs = recs.filter(x=>x.storeId===fStore);
+  if(fDate) recs = recs.filter(x=>new Date(x.time).toLocaleDateString()===new Date(fDate).toLocaleDateString());
+  const total = recs.length;
+  const start = (detailPage-1)*detailPageSize;
+  const pageRec = recs.slice(start,start+detailPageSize);
+  let html = `<table><tr><th>员工</th><th>分店</th><th>类型</th><th>时间</th><th>标记</th></tr>`
+  pageRec.forEach(r=>{
+    const t = new Date(r.time).toLocaleString();
+    const tp = r.type==="in"?"上班":"下班";
+    let extra = "";
+    if(r.lateLevel === "yellow") extra += "【轻度迟到】";
+    if(r.lateLevel === "red") extra += "【严重迟到】";
+    if(r.isManual) extra += "【补卡】";
+    html += `<tr><td>${r.sname}</td><td>${r.storeName}</td><td>${tp}</td><td>${t}</td><td>${extra}</td></tr>`
+  })
+  html += "</table>";
+  $("detailList").innerHTML = html || "<div>暂无记录</div>";
+  let pager = `<button onclick="detailPage--;renderDetail()" ${detailPage<=1?"disabled":""}>上一页</button> 第${detailPage}页 <button onclick="detailPage++;renderDetail()" ${start+detailPageSize>=total?"disabled":""}>下一页</button>`
+  $("detailPageWrap").innerHTML = pager;
+}
+
+// 页面加载自动拉云端
+loadCloud();
+</script>
+</body>
+</html>
